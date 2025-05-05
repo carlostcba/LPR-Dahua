@@ -131,14 +131,42 @@ También podés usar PyInstaller para compilar como `.exe`.
 
 ---
 
-## 💾 Conexión a MSSQL
+### 🔌 Conexión mediante ODBC (DSN en Windows)
 
-Modificar las cadenas de conexión en `config_reader.py` y `db_access.py`:
+Este proyecto utiliza `pyodbc`, que permite conectar a SQL Server mediante una cadena directa o a través de un **DSN (Data Source Name)** configurado en Windows.
+
+#### ✅ ¿Qué es un DSN?
+
+Un **DSN** es un alias de conexión configurado en Windows que guarda:
+- El tipo de driver (ej: SQL Server o ODBC Driver 17 for SQL Server).
+- El servidor SQL.
+- Las credenciales (opcional).
+- La base de datos predeterminada.
+
+---
+
+#### 🧩 Cómo configurar un DSN en Windows
+
+1. Abrí el programa `ODBC Data Source Administrator`:
+   - `odbcad32.exe` (32 o 64 bits según tu versión de Python).
+2. Elegí *DSN de Usuario* o *DSN de Sistema*.
+3. Hacé clic en **Agregar**.
+4. Seleccioná el driver:  
+   - `ODBC Driver 17 for SQL Server` o `SQL Server`.
+5. Completá:
+   - **Nombre del DSN**: `LPR_MSSQL` (por ejemplo).
+   - **Servidor**: la IP o nombre del host SQL Server.
+   - **Autenticación**: SQL o integrada (Windows).
+   - **Base de datos predeterminada**: la que contiene tus tablas Dahua.
+
+---
+
+#### 🔄 Modificaciones en el código
+
+En `config_reader.py` y `db_access.py`, cambiá la línea de conexión así:
 
 ```python
-pyodbc.connect(
-    "Driver={SQL Server};Server=localhost;Database=tu_basededatos;UID=usuario;PWD=clave;"
-)
+pyodbc.connect("DSN=LPR_MSSQL")
 ```
 
 ---
