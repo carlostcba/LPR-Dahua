@@ -1,5 +1,6 @@
-fastapi
-uvicorn
-pyodbc
-pydantic
-requests
+fastapi==0.100.0
+uvicorn==0.23.0
+pyodbc==4.0.39
+pydantic==2.1.1
+requests==2.31.0
+python-multipart==0.0.6
