@@ -10,6 +10,6 @@ def get_config():
         "cam_ip": row.cam_ip,
         "cam_user": row.cam_user,
         "cam_password": row.cam_password,
-        "snapshot_path": row.snapshot_path,
-        "images_folder": row.images_folder
+        "snapshot_path": row.snapshot_path,  # URL base para acceder a imágenes en la cámara
+        "images_folder": row.images_folder   # Carpeta local para guardar imágenes
     }
