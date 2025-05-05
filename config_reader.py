@@ -2,9 +2,7 @@
 import pyodbc
 
 def get_config():
-    conn = pyodbc.connect(
-        "Driver={SQL Server};Server=localhost;Database=tu_basededatos;UID=usuario;PWD=clave;"
-    )
+    conn = pyodbc.connect("DSN=LPR_MSSQL")
     cursor = conn.cursor()
     cursor.execute("SELECT TOP 1 cam_ip, cam_user, cam_password, snapshot_path FROM DahuaConfig ORDER BY id")
     row = cursor.fetchone()
