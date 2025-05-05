@@ -62,7 +62,8 @@ CREATE TABLE LPR_Logs (
     PlateNumber VARCHAR(20),
     EventTime DATETIME,
     ImageURL VARCHAR(255),
-    Status VARCHAR(20)
+    Status VARCHAR(20),
+    LocalImagePath VARCHAR(255);
 );
 ```
 
