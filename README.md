@@ -1,41 +1,48 @@
+📷 Dahua LPR Middleware
+Este proyecto es un middleware desarrollado en Python que permite integrar cámaras de reconocimiento automático de patentes (LPR) del fabricante Dahua con una base de datos Microsoft SQL Server (MSSQL).
 
-# Dahua LPR Middleware
+Funciona como un componente standalone (ejecutable .exe), ideal para ser ejecutado en entornos Windows 10/11 LTSC, y se puede invocar desde otras aplicaciones, como software escrito en Visual Basic 6.
 
-Este proyecto en Python permite capturar imágenes de una cámara Dahua con autenticación Digest y almacenar los eventos (patente, hora, imagen) en una base de datos MSSQL.
+🎯 Objetivo
+Permitir que una cámara Dahua LPR (por ejemplo, el modelo DHI-ITC431-RW1F-IRL8) pueda enviar sus eventos de detección de patentes a un sistema central basado en MSSQL, sin necesidad de software adicional de terceros.
 
-## Requisitos
+⚙️ Funcionamiento del sistema
+1. 🔁 Consulta periódica a la cámara
+Cada cierto intervalo (configurado en el código, por defecto 10 segundos), el middleware:
 
-- Python 3.10+
-- MSSQL con tabla `LPR_Events`
-- Configuración previa de cámara Dahua (modelo ITC431-RW1F-IRL8)
+Se conecta a la cámara Dahua vía HTTP usando autenticación Digest.
 
-## Estructura del proyecto
+Obtiene una imagen actual (snapshot) desde la cámara.
 
-- `main.py`: Loop principal que ejecuta la lectura cada 10 segundos.
-- `config_reader.py`: Obtiene IP, usuario y ruta desde la base de datos.
-- `dahua_lpr_client.py`: Captura una imagen usando Digest Auth.
-- `db_writer.py`: Guarda el evento en MSSQL.
-- `requirements.txt`: Librerías necesarias.
+2. 📝 Registro en base de datos
+Una vez capturada la imagen:
 
-## Instalación
+Se guarda en una carpeta local configurada en la base de datos.
 
-```bash
-pip install -r requirements.txt
-python main.py
-```
+Se registra en MSSQL un nuevo evento con:
 
-## Compilar a EXE
+La patente (simulada por ahora: ABC123).
 
-```bash
-pip install pyinstaller
-pyinstaller --onefile main.py
-```
+Fecha y hora del evento.
 
-El `.exe` estará en la carpeta `dist/`.
+Ruta del archivo de imagen guardado.
 
-## Tabla SQL esperada
+En versiones futuras, puede integrarse directamente con eventos ANPR reales usando la API avanzada Dahua (TrafficSnap, eventManager, etc).
 
-```sql
+🧱 Componentes del proyecto
+Archivo	Función Principal
+main.py	Loop principal que ejecuta el proceso cada X segundos
+config_reader.py	Lee los datos de conexión desde MSSQL (IP, usuario, contraseña de la cámara, ruta de imagen)
+dahua_lpr_client.py	Captura imagen desde la cámara Dahua usando autenticación Digest
+db_writer.py	Inserta el evento en la base de datos MSSQL
+requirements.txt	Lista de librerías necesarias
+README.md	Documentación completa del proyecto
+
+🗃️ Base de datos
+1. 📋 Tabla de configuración de cámara
+sql
+Copiar
+Editar
 CREATE TABLE DahuaConfig (
     id INT PRIMARY KEY,
     cam_ip VARCHAR(100),
@@ -43,11 +50,74 @@ CREATE TABLE DahuaConfig (
     cam_password VARCHAR(50),
     snapshot_path VARCHAR(255)
 );
-
+2. 📋 Tabla de eventos LPR
+sql
+Copiar
+Editar
 CREATE TABLE LPR_Events (
     Id INT IDENTITY PRIMARY KEY,
     PlateNumber VARCHAR(20),
     EventTime DATETIME,
     ImagePath VARCHAR(255)
 );
-```
+⚠️ Asegurate de insertar los datos iniciales en DahuaConfig para que el sistema funcione correctamente.
+
+🖥️ Requisitos del sistema
+Python 3.10+
+
+Windows 10/11 (LTSC recomendado)
+
+SQL Server 2016 o superior
+
+Acceso de red a la cámara Dahua
+
+Puerto HTTP habilitado (80, 88, o el configurado en la cámara)
+
+🚀 Instalación
+bash
+Copiar
+Editar
+# 1. Clonar o descomprimir el proyecto
+cd dahua_lpr_reader
+
+# 2. Instalar las dependencias
+pip install -r requirements.txt
+
+# 3. Ejecutar el middleware
+python main.py
+📦 Compilación a EXE
+Para generar el .exe ejecutable standalone:
+
+bash
+Copiar
+Editar
+pip install pyinstaller
+pyinstaller --onefile main.py
+El archivo resultante se ubicará en: dist/main.exe
+
+🔄 Integración con Visual Basic 6
+Podés llamar al ejecutable desde tu aplicación VB6 de la siguiente forma:
+
+vb
+Copiar
+Editar
+Dim pid As Long
+pid = Shell("C:\ruta\a\main.exe", vbNormalFocus)
+Esto permite que el middleware funcione como un subproceso externo, encargado de registrar eventos sin bloquear tu aplicación principal.
+
+🛡️ Seguridad y recomendaciones
+Se utiliza autenticación Digest para comunicarte con la cámara Dahua, lo cual es más seguro que Basic Auth.
+
+Los datos se insertan mediante parámetros seguros en MSSQL.
+
+Es recomendable configurar una cuenta SQL con permisos mínimos para operar esta función.
+
+📌 Próximas mejoras
+Lectura real de eventos ANPR desde la API Dahua (TrafficSnap, eventManager.cgi).
+
+Captura de datos como velocidad del vehículo, carril, y dirección.
+
+Interfaz web de monitoreo y logs.
+
+Logs de errores y registros locales en archivo .log.
+
