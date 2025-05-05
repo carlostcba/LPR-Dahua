@@ -46,7 +46,8 @@ CREATE TABLE DahuaConfig (
     cam_ip VARCHAR(100),
     cam_user VARCHAR(50),
     cam_password VARCHAR(50),
-    snapshot_path VARCHAR(255)
+    snapshot_path VARCHAR(255),
+    images_folder VARCHAR(255) DEFAULT 'C:\LPR_Images'
 );
 
 CREATE TABLE PatentesAutorizadas (
