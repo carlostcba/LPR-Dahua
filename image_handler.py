@@ -1,8 +1,6 @@
 import os
 import requests
 from datetime import datetime
-import base64
-from urllib.parse import urlparse
 from config_reader import get_config
 
 def ensure_folder_exists(folder_path):
