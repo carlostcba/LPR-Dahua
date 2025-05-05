@@ -61,6 +61,7 @@ Formato del cuerpo (JSON):
 }
 ```
 
+
 ## Integración con relés u otros sistemas
 
 Dentro de `receive_lpr_event` podés integrar lógica adicional como:
