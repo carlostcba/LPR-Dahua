@@ -6,6 +6,7 @@ from fastapi.responses import JSONResponse
 import uvicorn
 import logging
 from datetime import datetime
+import serial  # Añadido el import para el módulo serial
 
 # Configurar logging
 logging.basicConfig(
@@ -59,10 +60,18 @@ async def receive_lpr_event(event: LPREvent):
             action,
             local_image_path
         )
-
-        # Aquí podrías accionar un relé, enviar señal, etc.
-        # if authorized:
-        #     # Código para activar relé u otra acción
+        
+        # Activar relé si la placa está autorizada
+        if authorized:
+            try:
+                # Configurar puerto COM para el relé USB
+                ser = serial.Serial('COM3', 9600)
+                # Enviar comando para activar el relé 1 durante 3 segundos
+                ser.write(b'\xA0\x01\x01\x03\xA4')
+                logger.info(f"Relé activado para placa autorizada: {event.plate}")
+                ser.close()
+            except Exception as e:
+                logger.error(f"Error al activar el relé: {e}")
         
         response_data = {
             "status": action,
