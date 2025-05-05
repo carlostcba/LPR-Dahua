@@ -9,9 +9,11 @@ Este proyecto implementa un **middleware en Python** que recibe eventos LPR (Lec
 - **Guardado automático** de imágenes de reconocimiento en sistema de archivos local.
 - Estructura de carpetas organizada por fechas para fácil acceso.
 - Soporta múltiples cámaras simultáneamente.
+- Sistema de logging completo para seguimiento y diagnóstico.
 - Estructura modular y extensible.
 - Basado en **FastAPI** para alta concurrencia y bajo tiempo de respuesta.
 - Puede ejecutarse como **servicio tipo daemon en Windows 10/11**.
+- Endpoint de salud para monitoreo del servicio.
 
 ---
 
@@ -36,10 +38,11 @@ flowchart TD
 - **Cámara Dahua**: configurada para enviar eventos LPR en formato JSON por HTTP POST.
 - **FastAPI Server**: recibe los eventos y responde en milisegundos.
 - **MSSQL**:
-  - `DahuaConfig`: define IP, usuario, contraseña, carpeta de imágenes remotas y carpeta de almacenamiento local.
+  - `DahuaConfig`: define IP, usuario, contraseña, snapshot_path y carpeta de imágenes local.
   - `PatentesAutorizadas`: contiene las matrículas válidas.
   - `LPR_Logs`: almacena todos los eventos entrantes con resultado y ruta de imagen local.
 - **Sistema de archivos**: almacena las imágenes organizadas por fecha.
+- **Sistema de logging**: registra operaciones y errores para diagnóstico.
 
 ---
 
@@ -51,8 +54,8 @@ CREATE TABLE DahuaConfig (
     cam_ip VARCHAR(100),
     cam_user VARCHAR(50),
     cam_password VARCHAR(50),
-    snapshot_path VARCHAR(255),
-    images_folder VARCHAR(255) DEFAULT 'C:\LPR_Images'
+    snapshot_path VARCHAR(255),       -- URL base para construir URLs de imágenes
+    images_folder VARCHAR(255) DEFAULT 'C:\LPR_Images' -- Carpeta local para guardar imágenes
 );
 
 CREATE TABLE PatentesAutorizadas (
@@ -68,7 +71,7 @@ CREATE TABLE LPR_Logs (
     EventTime DATETIME,
     ImageURL VARCHAR(255),
     Status VARCHAR(20),
-    LocalImagePath VARCHAR(255)
+    LocalImagePath VARCHAR(255)        -- Ruta donde se guardó la imagen localmente
 );
 ```
 
@@ -78,12 +81,13 @@ CREATE TABLE LPR_Logs (
 
 | Archivo               | Descripción                                                                 |
 |------------------------|-----------------------------------------------------------------------------|
-| `main.py`              | Servidor FastAPI que expone `/evento-lpr` y procesa eventos                |
+| `main.py`              | Servidor FastAPI que expone `/evento-lpr` y `/health`                      |
 | `db_access.py`         | Lógica de verificación de patentes y escritura de logs en MSSQL            |
 | `config_reader.py`     | Obtiene configuración de cámara desde la tabla `DahuaConfig`               |
 | `image_handler.py`     | Gestiona la descarga y almacenamiento de imágenes                          |
-| `requirements.txt`     | Dependencias del entorno Python                                             |
+| `requirements.txt`     | Dependencias del entorno Python                                            |
 | `README.md`            | Documentación completa del proyecto                                         |
+| `lpr_middleware.log`   | Archivo de log generado automáticamente                                    |
 
 ---
 
@@ -96,6 +100,11 @@ CREATE TABLE LPR_Logs (
   "image_url": "http://192.168.1.108/snapshot.jpg"
 }
 ```
+
+### Notas sobre el campo `image_url`
+
+- Si es una URL completa (comienza con `http://` o `https://`), se utiliza directamente.
+- Si es una ruta parcial (ej: `/snapshot.jpg`), se construye la URL completa utilizando `snapshot_path` o `cam_ip` de la configuración.
 
 ---
 
@@ -119,13 +128,17 @@ pip install -r requirements.txt
 
 ### 2. Configurar la base de datos
 
-Asegurarse de que las tablas incluyan los nuevos campos:
-- Campo `images_folder` en la tabla `DahuaConfig`
-- Campo `LocalImagePath` en la tabla `LPR_Logs`
+Asegurarse de que las tablas incluyan los campos necesarios:
+- Campo `snapshot_path` en la tabla `DahuaConfig` (URL base para construir URLs de imágenes)
+- Campo `images_folder` en la tabla `DahuaConfig` (carpeta local para guardar imágenes)
+- Campo `LocalImagePath` en la tabla `LPR_Logs` (ruta donde se guardó la imagen)
 
 Si las tablas ya existen, ejecutar:
 
 ```sql
+ALTER TABLE DahuaConfig
+ADD snapshot_path VARCHAR(255);
+
 ALTER TABLE DahuaConfig
 ADD images_folder VARCHAR(255) DEFAULT 'C:\LPR_Images';
 
@@ -200,6 +213,18 @@ Cada imagen se nombra usando la patente detectada y la hora del evento, lo que f
 
 ---
 
+## 📊 Sistema de logging
+
+El middleware implementa un sistema de logging completo que registra:
+- Eventos recibidos
+- Verificaciones de patentes
+- Descargas de imágenes
+- Errores y excepciones
+
+Los logs se almacenan en el archivo `lpr_middleware.log` en la carpeta del proyecto.
+
+---
+
 ## 🧩 Instalación completa paso a paso
 
 ```bash
@@ -207,6 +232,22 @@ git clone https://github.com/tu_usuario/dahua_lpr_push.git
 cd dahua_lpr_push
 pip install -r requirements.txt
 python main.py
+```
+
+## 🔍 Monitoreo del servicio
+
+El endpoint `/health` puede utilizarse para verificar que el servicio está funcionando correctamente:
+
+```bash
+curl http://localhost:8000/health
+```
+
+Respuesta esperada:
+```json
+{
+  "status": "ok",
+  "timestamp": "2025-05-05T12:34:56.789"
+}
 ```
 
 ---
@@ -244,6 +285,7 @@ Esto eliminaría las carpetas con más de 90 días de antigüedad.
 - Las cámaras deben estar en una red local o VPN segura.
 - Si el servidor se expone a internet, usar HTTPS y token de validación.
 - Considerar encriptar las credenciales almacenadas en la base de datos.
+- Revisar periódicamente los logs para detectar intentos de acceso no autorizados.
 
 ---
 
