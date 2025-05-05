@@ -3,9 +3,7 @@ from pydantic import BaseModel
 from db_access import is_plate_authorized, log_event
 from image_handler import download_and_save_image
 from fastapi.responses import JSONResponse
-from datetime import datetime
 import uvicorn
-import os
 
 app = FastAPI()
 
