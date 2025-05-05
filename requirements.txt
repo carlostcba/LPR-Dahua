@@ -4,3 +4,4 @@ pyodbc==4.0.39
 pydantic==2.1.1
 requests==2.31.0
 python-multipart==0.0.6
+pyserial==3.5
