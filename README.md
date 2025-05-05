@@ -1,12 +1,13 @@
-
 # 📷 Dahua LPR Middleware (Modo Push con Configuración Dinámica)
 
-Este proyecto implementa un **middleware en Python** que recibe eventos LPR (Lectura de Patentes) desde **cámaras Dahua** mediante **HTTP POST**. Permite verificar si una patente detectada está autorizada, registrar el evento en una **base de datos MSSQL**, y tomar decisiones automáticas (ej: abrir una barrera).
+Este proyecto implementa un **middleware en Python** que recibe eventos LPR (Lectura de Patentes) desde **cámaras Dahua** mediante **HTTP POST**. Permite verificar si una patente detectada está autorizada, registrar el evento en una **base de datos MSSQL**, guardar imágenes localmente y tomar decisiones automáticas (ej: abrir una barrera).
 
 ## 🚀 Características clave
 
 - Compatible con cámaras Dahua ANPR/LPR (ej: DHI-ITC431-RW1F-IRL8).
 - Lectura **dinámica** de configuración de cámaras desde base de datos.
+- **Guardado automático** de imágenes de reconocimiento en sistema de archivos local.
+- Estructura de carpetas organizada por fechas para fácil acceso.
 - Soporta múltiples cámaras simultáneamente.
 - Estructura modular y extensible.
 - Basado en **FastAPI** para alta concurrencia y bajo tiempo de respuesta.
@@ -21,10 +22,13 @@ flowchart TD
     A[Cámara Dahua] -- HTTP POST --> B[Middleware FastAPI]
     B --> C[Verifica configuración en MSSQL]
     B --> D[Consulta patente en MSSQL]
+    B --> H[Descarga y guarda imagen]
     D -->|Autorizado| E[Registra evento OK]
     D -->|Denegado| F[Registra evento DENEGADO]
     F --> G[Opcional: enviar señal a relé]
     E --> G
+    H --> E
+    H --> F
 ```
 
 ### 🔧 Componentes principales
@@ -32,9 +36,10 @@ flowchart TD
 - **Cámara Dahua**: configurada para enviar eventos LPR en formato JSON por HTTP POST.
 - **FastAPI Server**: recibe los eventos y responde en milisegundos.
 - **MSSQL**:
-  - `DahuaConfig`: define IP, usuario, contraseña y carpeta de imagenes por cámara.
+  - `DahuaConfig`: define IP, usuario, contraseña, carpeta de imágenes remotas y carpeta de almacenamiento local.
   - `PatentesAutorizadas`: contiene las matrículas válidas.
-  - `LPR_Logs`: almacena todos los eventos entrantes con resultado.
+  - `LPR_Logs`: almacena todos los eventos entrantes con resultado y ruta de imagen local.
+- **Sistema de archivos**: almacena las imágenes organizadas por fecha.
 
 ---
 
@@ -63,7 +68,7 @@ CREATE TABLE LPR_Logs (
     EventTime DATETIME,
     ImageURL VARCHAR(255),
     Status VARCHAR(20),
-    LocalImagePath VARCHAR(255);
+    LocalImagePath VARCHAR(255)
 );
 ```
 
@@ -76,6 +81,7 @@ CREATE TABLE LPR_Logs (
 | `main.py`              | Servidor FastAPI que expone `/evento-lpr` y procesa eventos                |
 | `db_access.py`         | Lógica de verificación de patentes y escritura de logs en MSSQL            |
 | `config_reader.py`     | Obtiene configuración de cámara desde la tabla `DahuaConfig`               |
+| `image_handler.py`     | Gestiona la descarga y almacenamiento de imágenes                          |
 | `requirements.txt`     | Dependencias del entorno Python                                             |
 | `README.md`            | Documentación completa del proyecto                                         |
 
@@ -111,13 +117,29 @@ CREATE TABLE LPR_Logs (
 pip install -r requirements.txt
 ```
 
-### 2. Ejecutar como aplicación
+### 2. Configurar la base de datos
+
+Asegurarse de que las tablas incluyan los nuevos campos:
+- Campo `images_folder` en la tabla `DahuaConfig`
+- Campo `LocalImagePath` en la tabla `LPR_Logs`
+
+Si las tablas ya existen, ejecutar:
+
+```sql
+ALTER TABLE DahuaConfig
+ADD images_folder VARCHAR(255) DEFAULT 'C:\LPR_Images';
+
+ALTER TABLE LPR_Logs
+ADD LocalImagePath VARCHAR(255);
+```
+
+### 3. Ejecutar como aplicación
 
 ```bash
 uvicorn main:app --host 0.0.0.0 --port 8000
 ```
 
-### 3. (Opcional) Ejecutar como servicio en Windows
+### 4. (Opcional) Ejecutar como servicio en Windows
 
 Usar `NSSM` (Non-Sucking Service Manager):
 
@@ -163,13 +185,18 @@ Un **DSN** es un alias de conexión configurado en Windows que guarda:
 
 ---
 
-#### 🔄 Modificaciones en el código
+## 📁 Estructura de almacenamiento de imágenes
 
-En `config_reader.py` y `db_access.py`, cambiá la línea de conexión así:
+Las imágenes capturadas se almacenan siguiendo esta estructura:
 
-```python
-pyodbc.connect("DSN=LPR_MSSQL")
 ```
+C:\LPR_Images\  (configurable desde la tabla DahuaConfig)
+  └── 2025-05-05\  (carpeta con la fecha del evento)
+       ├── ABC123_123456.jpg  (formato: PATENTE_HHMMSS.jpg)
+       └── DEF456_124512.jpg
+```
+
+Cada imagen se nombra usando la patente detectada y la hora del evento, lo que facilita la búsqueda y organización.
 
 ---
 
@@ -184,12 +211,31 @@ python main.py
 
 ---
 
+## 🔁 Mantenimiento del almacenamiento
+
+Para evitar que el disco se llene con imágenes antiguas, se recomienda:
+
+1. Implementar una tarea programada de Windows que elimine las carpetas de imágenes más antiguas que cierto período.
+2. Monitorear el espacio en disco disponible.
+
+Ejemplo de script para borrar imágenes antiguas:
+
+```batch
+@echo off
+forfiles /p "C:\LPR_Images" /d -90 /c "cmd /c if @isdir==TRUE rmdir /s /q @path"
+```
+
+Esto eliminaría las carpetas con más de 90 días de antigüedad.
+
+---
+
 ## 🔄 Extensiones posibles
 
 - Enviar eventos por MQTT o WebSocket.
 - Visualizar estado de cámaras desde un dashboard web.
 - Controlar relés (GPIO, USB, red) para abrir portones.
 - Registrar imágenes en NAS o FTP.
+- Implementar análisis de imágenes con IA para detectar otros atributos del vehículo.
 
 ---
 
@@ -197,6 +243,7 @@ python main.py
 
 - Las cámaras deben estar en una red local o VPN segura.
 - Si el servidor se expone a internet, usar HTTPS y token de validación.
+- Considerar encriptar las credenciales almacenadas en la base de datos.
 
 ---
 
@@ -205,4 +252,3 @@ python main.py
 Para soporte, colaboración o mejoras, crear un issue o fork en GitHub.
 
 ---
-
