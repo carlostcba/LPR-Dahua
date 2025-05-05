@@ -2,9 +2,7 @@
 import pyodbc
 
 def get_connection():
-    return pyodbc.connect(
-        "Driver={SQL Server};Server=localhost;Database=tu_basededatos;UID=usuario;PWD=clave;"
-    )
+    return pyodbc.connect("DSN=LPR_MSSQL")
 
 def is_plate_authorized(plate):
     conn = get_connection()
