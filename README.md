@@ -1,33 +1,54 @@
 
-# Dahua LPR Middleware (Push Mode)
+# 📷 Dahua LPR Middleware (Modo Push con Configuración Dinámica)
 
-Este middleware en Python permite recibir eventos en tiempo real desde cámaras Dahua LPR mediante HTTP POST. Evalúa si la patente detectada está autorizada y registra el resultado en una base de datos MSSQL.
+Este proyecto implementa un **middleware en Python** que recibe eventos LPR (Lectura de Patentes) desde **cámaras Dahua** mediante **HTTP POST**. Permite verificar si una patente detectada está autorizada, registrar el evento en una **base de datos MSSQL**, y tomar decisiones automáticas (ej: abrir una barrera).
 
-## Características
+## 🚀 Características clave
 
-- Recibe eventos ANPR en formato JSON (modo push).
-- Consulta una tabla `PatentesAutorizadas` para determinar si se permite el acceso.
-- Guarda logs de eventos en `LPR_Logs`.
-- Soporta múltiples cámaras simultáneamente (FastAPI asincrónico).
-- Tiempo de reacción en milisegundos.
+- Compatible con cámaras Dahua ANPR/LPR (ej: DHI-ITC431-RW1F-IRL8).
+- Lectura **dinámica** de configuración de cámaras desde base de datos.
+- Soporta múltiples cámaras simultáneamente.
+- Estructura modular y extensible.
+- Basado en **FastAPI** para alta concurrencia y bajo tiempo de respuesta.
+- Puede ejecutarse como **servicio tipo daemon en Windows 10/11**.
 
-## Requisitos
+---
 
-- Python 3.10+
-- MSSQL Server
-- FastAPI + Uvicorn
-- Red LAN entre cámara y servidor
+## 🏗️ Arquitectura y flujo de la aplicación
 
-## Instalación
-
-```bash
-pip install -r requirements.txt
-uvicorn main:app --host 0.0.0.0 --port 8000
+```mermaid
+flowchart TD
+    A[Cámara Dahua] -- HTTP POST --> B[Middleware FastAPI]
+    B --> C[Verifica configuración en MSSQL]
+    B --> D[Consulta patente en MSSQL]
+    D -->|Autorizado| E[Registra evento OK]
+    D -->|Denegado| F[Registra evento DENEGADO]
+    F --> G[Opcional: enviar señal a relé]
+    E --> G
 ```
 
-## Base de datos
+### 🔧 Componentes principales
+
+- **Cámara Dahua**: configurada para enviar eventos LPR en formato JSON por HTTP POST.
+- **FastAPI Server**: recibe los eventos y responde en milisegundos.
+- **MSSQL**:
+  - `DahuaConfig`: define IP, usuario, contraseña y carpeta de imagenes por cámara.
+  - `PatentesAutorizadas`: contiene las matrículas válidas.
+  - `LPR_Logs`: almacena todos los eventos entrantes con resultado.
+
+---
+
+## 🗄️ Esquema de base de datos SQL Server
 
 ```sql
+CREATE TABLE DahuaConfig (
+    id INT PRIMARY KEY,
+    cam_ip VARCHAR(100),
+    cam_user VARCHAR(50),
+    cam_password VARCHAR(50),
+    snapshot_path VARCHAR(255)
+);
+
 CREATE TABLE PatentesAutorizadas (
     id INT PRIMARY KEY IDENTITY,
     Patente VARCHAR(20) UNIQUE,
@@ -44,28 +65,114 @@ CREATE TABLE LPR_Logs (
 );
 ```
 
-## Configuración de cámaras Dahua
+---
 
-Configurar cada cámara para enviar eventos ANPR vía HTTP POST a:
+## 📂 Estructura del proyecto
 
-```
-http://[IP_DEL_SERVIDOR]:8000/evento-lpr
-```
+| Archivo               | Descripción                                                                 |
+|------------------------|-----------------------------------------------------------------------------|
+| `main.py`              | Servidor FastAPI que expone `/evento-lpr` y procesa eventos                |
+| `db_access.py`         | Lógica de verificación de patentes y escritura de logs en MSSQL            |
+| `config_reader.py`     | Obtiene configuración de cámara desde la tabla `DahuaConfig`               |
+| `requirements.txt`     | Dependencias del entorno Python                                             |
+| `README.md`            | Documentación completa del proyecto                                         |
 
-Formato del cuerpo (JSON):
+---
+
+## 🧪 Ejemplo de payload esperado desde la cámara
+
 ```json
 {
   "plate": "ABC123",
   "timestamp": "2025-05-05T12:34:56Z",
-  "image_url": "http://[cam_ip]/snapshot.jpg"
+  "image_url": "http://192.168.1.108/snapshot.jpg"
 }
 ```
 
+---
 
-## Integración con relés u otros sistemas
+## 🔌 Configuración de la cámara Dahua
 
-Dentro de `receive_lpr_event` podés integrar lógica adicional como:
-- Enviar señal a GPIO
-- Activar HTTP GET/POST a otro servicio
-- Controlar hardware conectado a Raspberry Pi, Arduino, etc.
+1. Acceder vía navegador a la IP de la cámara.
+2. Ingresar a la sección de configuración ANPR o LPR.
+3. Enviar datos por HTTP → método POST.
+4. URL del servidor: `http://[IP_SERVIDOR]:8000/evento-lpr`
+5. Formato: JSON.
+
+---
+
+## 🖥️ Instalación en entorno Windows 10/11
+
+### 1. Instalar Python y dependencias
+
+```bash
+pip install -r requirements.txt
+```
+
+### 2. Ejecutar como aplicación
+
+```bash
+uvicorn main:app --host 0.0.0.0 --port 8000
+```
+
+### 3. (Opcional) Ejecutar como servicio en Windows
+
+Usar `NSSM` (Non-Sucking Service Manager):
+
+```bash
+nssm install DahuaLPR
+```
+
+- Ruta del ejecutable: `python.exe`
+- Argumentos: `-m uvicorn main:app --host 0.0.0.0 --port 8000`
+- Directorio: carpeta del proyecto
+
+También podés usar PyInstaller para compilar como `.exe`.
+
+---
+
+## 💾 Conexión a MSSQL
+
+Modificar las cadenas de conexión en `config_reader.py` y `db_access.py`:
+
+```python
+pyodbc.connect(
+    "Driver={SQL Server};Server=localhost;Database=tu_basededatos;UID=usuario;PWD=clave;"
+)
+```
+
+---
+
+## 🧩 Instalación completa paso a paso
+
+```bash
+git clone https://github.com/tu_usuario/dahua_lpr_push.git
+cd dahua_lpr_push
+pip install -r requirements.txt
+python main.py
+```
+
+---
+
+## 🔄 Extensiones posibles
+
+- Enviar eventos por MQTT o WebSocket.
+- Visualizar estado de cámaras desde un dashboard web.
+- Controlar relés (GPIO, USB, red) para abrir portones.
+- Registrar imágenes en NAS o FTP.
+
+---
+
+## 🛡️ Seguridad
+
+- Las cámaras deben estar en una red local o VPN segura.
+- Si el servidor se expone a internet, usar HTTPS y token de validación.
+
+---
+
+## 📬 Contacto y soporte
+
+Para soporte, colaboración o mejoras, crear un issue o fork en GitHub.
+
+---
 
