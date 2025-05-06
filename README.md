@@ -1,4 +1,4 @@
-# 📷 Dahua LPR Middleware (Modo Push con Configuración Dinámica)
+# 📷 Dahua LPR Middleware (Modo Push)
 
 Este proyecto implementa un **middleware en Python** que recibe eventos LPR (Lectura de Patentes) desde **cámaras Dahua** mediante **HTTP POST**. Permite verificar si una patente detectada está autorizada, registrar el evento en una **base de datos MSSQL**, guardar imágenes localmente y tomar decisiones automáticas (ej: abrir una barrera).
 
@@ -290,7 +290,7 @@ Esto eliminaría las carpetas con más de 90 días de antigüedad.
 ---
 
 
-# 📘 Dahua ANPR / LPR - Documentación completa de APIs HTTP
+# 📘 Dahua ANPR / LPR - Documentación de APIs HTTP
 
 Este documento resume las APIs más importantes que se pueden usar con **cámaras Dahua ANPR / LPR**, incluyendo el modelo **DHI-ITC431-RW1F-IRL8**. Se basa en el estándar HTTP API v3.26 de Dahua y contempla uso en modo **pull** y **push**, control de listas, captura de imágenes, búsqueda de eventos y configuración avanzada.
 
